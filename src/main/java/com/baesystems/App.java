@@ -5,15 +5,14 @@
  */
 package com.baesystems;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 /**
  * The main class which run reindexing.
@@ -22,7 +21,7 @@ public class App {
 
     private static final Logger LOG = LoggerFactory.getLogger(App.class);
 
-    @Parameter(names = { "-h", "--host" }, description = "Elasticsearch host.", required = true)
+    @Parameter(names = { "-h", "--host" }, description = "Coma separated host list of Elasticsearch hosts.", required = true)
     private String host;
 
     @Parameter(names = { "-sd", "--start-date" }, description = "Start date from start reindexing in yyyyMMdd format (20150701)(Inclusive)", required = true)
@@ -55,7 +54,9 @@ public class App {
     public void run() {
         LOG.info("Started re-indexing process");
 
-        ClientManager manager = new ClientManager(this.clusterName, this.host);
+        String[] hosts = StringUtils.split(this.host, ",");
+
+        ClientManager manager = new ClientManager(this.clusterName, hosts);
         DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyyMMdd");
 
         DateTime startDate = fmt.parseDateTime(this.startDateString);

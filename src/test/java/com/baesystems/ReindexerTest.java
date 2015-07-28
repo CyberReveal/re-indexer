@@ -26,6 +26,9 @@ import com.baesystems.test.util.ElasticSearchNode;
 
 public class ReindexerTest {
 
+    private static final String DATE_FORMAT = "yyyyMMdd";
+    private static final String TIMESTAMP_FIELD = "_timestamp";
+    private static final String PARENT_FIELD = "_parent";
     private static final String TIME_TYPE = "time";
     private static final String CHILDREN = "child";
     private static final int BATCH_SIZE = 2;
@@ -42,7 +45,7 @@ public class ReindexerTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         es = new ElasticSearchNode();
-        es.afterPropertiesSet();
+        es.startNode();
     }
 
     @Before
@@ -63,7 +66,7 @@ public class ReindexerTest {
 
     @AfterClass
     public static void afterClass() throws Exception {
-        es.destroy();
+        es.shutdownAndClean();
     }
 
     @After
@@ -173,7 +176,7 @@ public class ReindexerTest {
 
         String id = es.indexDocument(INDEX, TIME_TYPE, document);
 
-        this.reindexer = new Reindexer(INDEX, TIME_TYPE, "_timestamp", BATCH_SIZE, client);
+        this.reindexer = new Reindexer(INDEX, TIME_TYPE, TIMESTAMP_FIELD, BATCH_SIZE, client);
 
         DateTime currentTime = new DateTime();
         this.reindexer.reindex(currentTime.minusDays(1), currentTime.plusDays(1), NEW_INDEX);
@@ -186,7 +189,7 @@ public class ReindexerTest {
     }
 
     private DateTime parseStringToDate(final String dateString) {
-        DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyyMMdd");
+        DateTimeFormatter fmt = DateTimeFormat.forPattern(DATE_FORMAT);
         DateTime date = fmt.parseDateTime(dateString);
         return date;
     }
@@ -216,14 +219,14 @@ public class ReindexerTest {
     }
 
     private XContentBuilder getChildrenMapping() throws IOException {
-        XContentBuilder builder = jsonBuilder().startObject().startObject(CHILDREN).startObject("_parent")
+        XContentBuilder builder = jsonBuilder().startObject().startObject(CHILDREN).startObject(PARENT_FIELD)
                 .field("type", TYPE).endObject().endObject().endObject();
 
         return builder;
     }
 
     private XContentBuilder getTimestampMapping() throws IOException {
-        XContentBuilder builder = jsonBuilder().startObject().startObject(TIME_TYPE).startObject("_timestamp")
+        XContentBuilder builder = jsonBuilder().startObject().startObject(TIME_TYPE).startObject(TIMESTAMP_FIELD)
                 .field("enabled", true).field("store", true).endObject().endObject().endObject();
 
         return builder;

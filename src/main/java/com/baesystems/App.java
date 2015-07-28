@@ -15,9 +15,12 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-public class Main {
+/**
+ * The main class which run reindexing.
+ */
+public class App {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Main.class);
+    private static final Logger LOG = LoggerFactory.getLogger(App.class);
 
     @Parameter(names = { "-h", "--host" }, description = "Elasticsearch host.", required = true)
     private String host;
@@ -69,7 +72,7 @@ public class Main {
         LOG.info("Founded {} items to reindex.", numberOfDocumentInPeriod);
 
         if (numberOfDocumentInPeriod == 0) {
-            LOG.info("Re-index terminated due to lack of document to reindex.");
+            LOG.info("Re-index finished - no more documents.");
         }
 
         while (true) {
@@ -92,7 +95,7 @@ public class Main {
      */
     public static void main(final String[] args) {
 
-        Main main = new Main();
+        App main = new App();
 
         if (args.length > 0) {
             LOG.info("Parsing arguments");

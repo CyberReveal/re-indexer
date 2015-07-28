@@ -111,7 +111,7 @@ public class Reindexer {
 
             }
 
-            LOG.info("This batch inserted {} documents.", number);
+            LOG.debug("This batch inserted {} documents.", number);
 
             if (response.getHits().getHits().length > 0) {
                 BulkResponse bulkResponse = bulkRequest.get();

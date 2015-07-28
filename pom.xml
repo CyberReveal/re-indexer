@@ -43,7 +43,7 @@
 		<dependency>
 			<groupId>com.beust</groupId>
 			<artifactId>jcommander</artifactId>
-			<version>${jcommander.version</version>
+			<version>${jcommander.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>

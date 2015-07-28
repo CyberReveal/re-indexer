@@ -8,36 +8,47 @@
     <artifactId>es-reindexer</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+	<properties>
+		<slf4.version>1.7.12</slf4.version>
+		<elasticsearch.version>1.5.0</elasticsearch.version>
+		<jodatime.version>2.8.1</jodatime.version>
+		<jcommander.version>1.48</jcommander.version>
+		<commons.version>3.0</commons.version>
+		
+		<junit.version>4.11</junit.version>
+		<hamcrest.version>1.3</hamcrest.version>
+	</properties>
+
     <dependencies>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.12</version>
+            <version>${slf4.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>1.7.12</version>
+            <version>${slf4.version}</version>
         </dependency>
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
-            <version>1.5.2</version>
+            <version>${elasticsearch.version}</version>
         </dependency>
         <dependency>
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
-            <version>2.8.1</version>
+            <version>${jodatime.version}</version>
         </dependency>
 		<dependency>
 			<groupId>com.beust</groupId>
 			<artifactId>jcommander</artifactId>
-			<version>1.48</version>
+			<version>${jcommander.version</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
-			<version>3.0</version>
+			<version>${commons.version}</version>
 		</dependency>
 				
 
@@ -45,13 +56,13 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.11</version>
+			<version>${junit.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
-			<version>1.3</version>
+			<version>${hamcrest.version}</version>
 			<scope>test</scope>
 		</dependency>
 		

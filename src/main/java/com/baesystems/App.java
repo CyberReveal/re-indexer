@@ -5,108 +5,144 @@
  */
 package com.baesystems;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
+import org.joda.time.LocalTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 
 /**
  * The main class which run reindexing.
  */
 public class App {
 
-    private static final Logger LOG = LoggerFactory.getLogger(App.class);
+	private static final Logger LOG = LoggerFactory.getLogger(App.class);
 
-    @Parameter(names = { "-h", "--host" }, description = "Coma separated host list of Elasticsearch hosts.", required = true)
-    private String host;
+	@Parameter(names = { "-sh", "--src-host" }, description = "Coma separated host list of Elasticsearch src hosts.", required = true)
+	private String srcHost;
 
-    @Parameter(names = { "-sd", "--start-date" }, description = "Start date from start reindexing in yyyyMMdd format (20150701)(Inclusive)", required = true)
-    private String startDateString;
+	@Parameter(names = { "-dh", "--dst-host" }, description = "Coma separated host list of Elasticsearch dst hosts.", required = false)
+	private String dstHost;
 
-    @Parameter(names = { "-ed", "--end-date" }, description = "End date for reindexing in yyyyMMdd format (20150711)(Exclusive)")
-    private String endDateString;
+	@Parameter(names = { "-sd", "--start-date" }, description = "Start date from start reindexing in yyyyMMdd format (20150701)(Inclusive)")
+	private String startDateString;
 
-    @Parameter(names = { "-i", "--index" }, description = "Name of the index", required = true)
-    private String index;
+	@Parameter(names = { "-ed", "--end-date" }, description = "End date for reindexing in yyyyMMdd format (20150711)(Exclusive)")
+	private String endDateString;
 
-    @Parameter(names = { "-d", "--destination" }, description = "Name of the destination index", required = true)
-    private String newIndex;
+	@Parameter(names = { "-i", "--index" }, description = "Name of the index", required = true)
+	private String index;
 
-    @Parameter(names = { "-t", "--type" }, description = "Name of the type", required = true)
-    private String type;
+	@Parameter(names = { "-d", "--destination" }, description = "Name of the destination index", required = false)
+	private String newIndex;
 
-    @Parameter(names = { "-f", "--field" }, description = "Name of the field which is used for reindexing. Field has to be date type.", required = true)
-    private String field;
+	@Parameter(names = { "-t", "--type" }, description = "Name of the type", required = true)
+	private String type;
 
-    @Parameter(names = { "--batch-size" }, description = "Batch size of how many document will be pulled from elasticsearch at given time")
-    private final int batchSize = 500;
+	@Parameter(names = { "-f", "--field" }, description = "Name of the field which is used for reindexing. Field has to be date type.", required = false)
+	private String field;
 
-    @Parameter(names = { "-cn", "--cluster-name" }, description = "Name of the Elasticsearch cluster", required = true)
-    private String clusterName;
+	@Parameter(names = { "-bs", "--batch-size" }, description = "Batch size of how many document will be pulled from elasticsearch at given time")
+	private int batchSize = 500;
 
-    /**
-     * Run re-indexing operation.
-     */
-    public void run() {
-        LOG.info("Started re-indexing process");
+	@Parameter(names = { "-tbs", "--temp-batch-size" }, description = "Temporal batch size in days")
+	private int temporalBatchSize = 1;
 
-        String[] hosts = StringUtils.split(this.host, ",");
+	@Parameter(names = { "-cn", "--cluster-name" }, description = "Name of the Elasticsearch cluster", required = false)
+	private String clusterName;
 
-        ClientManager manager = new ClientManager(this.clusterName, hosts);
-        DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyyMMdd");
+	/**
+	 * Run re-indexing operation.
+	 */
+	public void run() {
+		LOG.info("Started re-indexing process");
 
-        DateTime startDate = fmt.parseDateTime(this.startDateString);
-        DateTime endTime;
-        if (StringUtils.isBlank(this.endDateString)) {
-            endTime = new DateTime().withTime(0, 0, 0, 0).plusDays(1);
-        } else {
-            endTime = fmt.parseDateTime(this.endDateString);
-        }
+		DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyyMMdd");
 
-        Reindexer reindexer = new Reindexer(this.index, this.type, this.field, this.batchSize, manager.getClient());
+		DateTime startDate = null;
+		DateTime endTime = null;
 
-        long numberOfDocumentInPeriod = reindexer.getDocumentNumberInPeriod(startDate, endTime);
-        LOG.info("Founded {} items to reindex.", numberOfDocumentInPeriod);
+		if (this.field != null) {
+			startDate = fmt.parseDateTime(this.startDateString);
+			if (StringUtils.isBlank(this.endDateString)) {
+				endTime = new DateTime().withTime(0, 0, 0, 0).plusDays(1);
+			} else {
+				endTime = fmt.parseDateTime(this.endDateString);
+			}
+		}
 
-        if (numberOfDocumentInPeriod == 0) {
-            LOG.info("Re-index finished - no more documents.");
-        }
+		Reindexer reindexer = null;
+		if (dstHost != null) {
+			reindexer = new InterClusterReindexer(this.index, this.type,
+					this.field, this.batchSize, this.srcHost, this.dstHost);
+		} else {
+			String[] hosts = StringUtils.split(this.srcHost, ",");
+			ClientManager manager = new ClientManager(this.clusterName, hosts);
 
-        while (true) {
-            DateTime beforeDate = endTime.minusDays(1);
+			reindexer = new IntraClusterReindexer(this.index, this.type,
+					this.field, this.batchSize, manager.getClient(),
+					this.newIndex);
+		}
 
-            reindexer.reindex(beforeDate, endTime, this.newIndex);
+		long numberOfDocumentInPeriod = reindexer.getDocumentNumberInPeriod(
+				startDate, endTime);
+		LOG.info("Founded {} items to reindex.", numberOfDocumentInPeriod);
 
-            endTime = beforeDate;
-            if (beforeDate.equals(startDate)) {
-                break;
-            }
-        }
+		if (numberOfDocumentInPeriod == 0) {
+			LOG.info("Re-index finished - no more documents.");
+		}
 
-    }
+		long startTime = System.currentTimeMillis();
+		while (true) {
+			DateTime beforeDate = null;
 
-    /**
-     * Main method run application and parse the args.
-     *
-     * @param args the arguments
-     */
-    public static void main(final String[] args) {
+			if (field != null) {
+				beforeDate = endTime.minusDays(temporalBatchSize);
 
-        App main = new App();
+				if (beforeDate.isBefore(startDate)) {
+					beforeDate = startDate;
+				}
+			}
 
-        if (args.length > 0) {
-            LOG.info("Parsing arguments");
-            new JCommander(main, args);
-            main.run();
-            LOG.info("Reindexing finished");
-        } else {
-            LOG.error("There are missing arguments. Please look at the usage.");
-            new JCommander(main).usage();
-        }
+			reindexer.reindex(beforeDate, endTime);
 
-    }
+			if (field != null) {
+				endTime = beforeDate;
+				if (beforeDate.equals(startDate)) {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+		LOG.info("Completed in {}", new LocalTime(System.currentTimeMillis()
+				- startTime));
+	}
+
+	/**
+	 * Main method run application and parse the args.
+	 * 
+	 * @param args
+	 *            the arguments
+	 */
+	public static void main(final String[] args) {
+
+		App main = new App();
+
+		if (args.length > 0) {
+			LOG.info("Parsing arguments");
+			new JCommander(main, args);
+			main.run();
+			LOG.info("Reindexing finished");
+		} else {
+			LOG.error("There are missing arguments. Please look at the usage.");
+			new JCommander(main).usage();
+		}
+
+	}
 }

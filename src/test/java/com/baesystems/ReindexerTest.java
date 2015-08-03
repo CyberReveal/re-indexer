@@ -21,7 +21,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.baesystems.Reindexer;
+import com.baesystems.IntraClusterReindexer;
 import com.baesystems.test.util.ElasticSearchNode;
 
 public class ReindexerTest {
@@ -40,7 +40,7 @@ public class ReindexerTest {
     private static ElasticSearchNode es;
 
     private Client client;
-    private Reindexer reindexer;
+    private IntraClusterReindexer reindexer;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -61,7 +61,7 @@ public class ReindexerTest {
         es.putMapping(INDEX, TIME_TYPE, getTimestampMapping());
         es.putMapping(NEW_INDEX, TIME_TYPE, getTimestampMapping());
 
-        reindexer = new Reindexer(INDEX, TYPE, TIMESTAMP, BATCH_SIZE, client);
+        reindexer = new IntraClusterReindexer(INDEX, TYPE, TIMESTAMP, BATCH_SIZE, client, NEW_INDEX);
     }
 
     @AfterClass
@@ -83,7 +83,7 @@ public class ReindexerTest {
 
         String id = es.indexDocument(INDEX, TYPE, document);
 
-        this.reindexer.reindex(date, date.plusDays(1), NEW_INDEX);
+        this.reindexer.reindex(date, date.plusDays(1));
 
         Map<String, Object> source = es.getDocumentById(NEW_INDEX, TYPE, id);
 
@@ -99,7 +99,7 @@ public class ReindexerTest {
 
         String id = es.indexDocument(INDEX, TYPE, document);
 
-        this.reindexer.reindex(date, date.plusDays(1), NEW_INDEX);
+        this.reindexer.reindex(date, date.plusDays(1));
 
         Map<String, Object> source = es.getDocumentById(NEW_INDEX, TYPE, id);
 
@@ -115,7 +115,7 @@ public class ReindexerTest {
 
         String id = es.indexDocument(INDEX, TYPE, document);
 
-        this.reindexer.reindex(date.minusDays(1), date, NEW_INDEX);
+        this.reindexer.reindex(date.minusDays(1), date);
 
         Map<String, Object> source = es.getDocumentById(NEW_INDEX, TYPE, id);
 
@@ -133,7 +133,7 @@ public class ReindexerTest {
         String id3 = es.indexDocument(INDEX, TYPE, document);
         String id4 = es.indexDocument(INDEX, TYPE, document);
 
-        this.reindexer.reindex(date, date.plusDays(1), NEW_INDEX);
+        this.reindexer.reindex(date, date.plusDays(1));
 
         Map<String, Object> source = es.getDocumentById(NEW_INDEX, TYPE, id1);
         checkDocument(document, source);
@@ -156,8 +156,8 @@ public class ReindexerTest {
         String parent = es.indexDocument(INDEX, TYPE, document);
         String child = es.indexDocument(INDEX, CHILDREN, parent, document);
 
-        this.reindexer = new Reindexer(INDEX, CHILDREN, TIMESTAMP, BATCH_SIZE, client);
-        this.reindexer.reindex(date, date.plusDays(1), NEW_INDEX);
+        this.reindexer = new IntraClusterReindexer(INDEX, CHILDREN, TIMESTAMP, BATCH_SIZE, client, NEW_INDEX);
+        this.reindexer.reindex(date, date.plusDays(1));
 
         Map<String, Object> source = es.getDocumentById(NEW_INDEX, CHILDREN, child, parent);
 
@@ -176,10 +176,10 @@ public class ReindexerTest {
 
         String id = es.indexDocument(INDEX, TIME_TYPE, document);
 
-        this.reindexer = new Reindexer(INDEX, TIME_TYPE, TIMESTAMP_FIELD, BATCH_SIZE, client);
+        this.reindexer = new IntraClusterReindexer(INDEX, TIME_TYPE, TIMESTAMP_FIELD, BATCH_SIZE, client, NEW_INDEX);
 
         DateTime currentTime = new DateTime();
-        this.reindexer.reindex(currentTime.minusDays(1), currentTime.plusDays(1), NEW_INDEX);
+        this.reindexer.reindex(currentTime.minusDays(1), currentTime.plusDays(1));
         Map<String, Object> source = es.getDocumentById(NEW_INDEX, TIME_TYPE, id);
 
         checkDocument(document, source);

@@ -25,7 +25,8 @@ class InterClusterReindexer implements Reindexer {
 
 	private static final String PARENT_FIELD = '_parent'
 
-	private static final String TIMEOUT = '10m'
+	// need large timeout for scan, especially for large binary documents
+	private static final String TIMEOUT = '60m'
 
 	private static final Logger LOG = LoggerFactory.getLogger(InterClusterReindexer.class)
 
@@ -85,6 +86,116 @@ class InterClusterReindexer implements Reindexer {
 			response.success = { resp, json ->
 				return json['count']
 			}
+
+			response.failure = { resp ->
+				LOG.error("error acquring number of docs for $index:$type")
+			}
+		}
+	}
+
+	/**
+	 * Create index at dest if it doens't already exist, and copy certain index settings from src to dest cluster
+	 * <p>
+	 * Settings include number of replicas and number of shards, along with the analyzers
+	 */
+	private void initIndex() {
+		LOG.info("checking $index exists in destination cluster")
+
+		// check index exists at destination, otherwise create it
+		dstHttp.request(Method.HEAD) { headReq ->
+			uri.path = "$index"
+
+			response.success = { headResp ->
+				LOG.info("Index already exists at destination, not copying settings / analyzers")
+			}
+
+			response.'404' = { headResp ->
+				LOG.info("Index doesn't exist at destination, copying settings / analyzers")
+
+				// create index settings - # of shards & replicas, analyzers
+				srcHttp.request( Method.GET, ContentType.JSON ) { req ->
+					uri.path = "$index/_settings"
+
+					response.success = { resp, json ->
+						jsonBuilder.call(json)
+						println jsonBuilder.toPrettyString()
+
+						// put type mapping to destination cluster
+						dstHttp.request( Method.PUT, ContentType.JSON ) { dstReq ->
+							uri.path = "$index"
+							body = [
+								settings : [
+									index : [
+										number_of_shards : json[index].settings.index.number_of_shards,
+										number_of_replicas : json[index].settings.index.number_of_replicas,
+										analysis : json[index].settings.index.analysis
+									]
+								]
+							]
+
+							response.success = { dstResp, dstJson ->
+								LOG.info("Copied settings $index")
+							}
+						}
+					}
+				}
+
+				// copy over default mapping
+				srcHttp.request( Method.GET, ContentType.JSON ) { req ->
+					uri.path = "$index/_mappings/_default_"
+
+					response.success = { defMappingResp, defMappingJson ->
+						if (defMappingJson[index]) {
+							// put type mapping to destination cluster
+							dstHttp.request( Method.PUT, ContentType.JSON ) { dstReq ->
+								uri.path = "$index/_mappings/_default_"
+								body = defMappingJson[index]['mappings']
+
+								response.success = { dstResp, dstJson ->
+									LOG.info("Copied mapping for $index:_default_")
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * If new index doesn't contain mappings for the configured type, then copy from existing index 
+	 */
+	private void initType() {
+		Map mapping = null
+
+		dstHttp.request( Method.GET, ContentType.JSON ) { destMappingReq ->
+			uri.path = "$index/_mapping/$type"
+
+			response.success = { destMappingResp, destMappingJson ->
+				if (!destMappingJson[index]) {
+					srcHttp.request( Method.GET, ContentType.JSON ) { srcMappingReq ->
+						uri.path = "$index/_mapping/$type"
+
+						response.success = { srcMappingResp, srcMappingJson ->
+							mapping = srcMappingJson
+						}
+					}
+				} else {
+				LOG.info("Mapping already exists for $index:$type")
+				}
+			}
+		}
+
+		if (mapping) {
+			// put type mapping to destination cluster
+			dstHttp.request( Method.PUT, ContentType.JSON ) { dstReq ->
+				uri.path = "$index/_mapping/$type"
+				body = mapping[index]['mappings']
+
+				response.success = { dstResp, dstJson ->
+					LOG.info("Copied mapping for $index:$type")
+				}
+			}
 		}
 	}
 
@@ -97,6 +208,9 @@ class InterClusterReindexer implements Reindexer {
 	public void reindex(final DateTime from, final DateTime to) {
 
 		LOG.info("Start re-indexing for data between {} and {}", from, to)
+
+		initIndex()
+		initType()
 
 		BaseQueryBuilder queryBuilder = null
 		if (field) {

@@ -24,11 +24,6 @@
 			<version>${slf4.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>${slf4.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
@@ -79,6 +74,16 @@
 			<groupId>com.vividsolutions</groupId>
 			<artifactId>jts</artifactId>
 			<version>1.13</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
 		</dependency>
 	</dependencies>
 
